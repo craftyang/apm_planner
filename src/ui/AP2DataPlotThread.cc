@@ -13,9 +13,10 @@
 #include "QGC.h"
 
 
-AP2DataPlotThread::AP2DataPlotThread(QObject *parent) :
+AP2DataPlotThread::AP2DataPlotThread(AP2DataPlot2DModel *model,QObject *parent) :
     QThread(parent)
 {
+    m_dataModel = model;
     qRegisterMetaType<MAV_TYPE>("MAV_TYPE");
 }
 void AP2DataPlotThread::loadFile(QString file,QSqlDatabase *db)
@@ -787,7 +788,7 @@ void AP2DataPlotThread::loadTLog()
         return;
     }
 
-    if (!m_db->transaction())
+    /*if (!m_db->transaction())
     {
         emit error("Unable to start database transaction 1");
         return;
@@ -815,7 +816,7 @@ void AP2DataPlotThread::loadTLog()
     {
         emit error("Error preparing INDEX insert statement: " + indexinsertquery.lastError().text());
         return;
-    }
+    }*/
 
 
 
@@ -925,16 +926,16 @@ void AP2DataPlotThread::loadTLog()
                     QList<QPair<QString,QVariant> > retvals = decoder->receiveMessage(0,message);
                     QString name = decoder->getMessageName(message.msgid);
 
-                    if (!m_msgNameToInsertQuery.contains(name))
+                    if (!m_dataModel->hasType(name))
                     {
 
                         QList<QString> fieldnames = decoder->getFieldList(name);
-                        QString variablenames;
-                        QString typechars;
+                        QStringList variablenames;
+                        QStringList typechars;
                         for (int i=0;i<fieldnames.size();i++)
                         {
                             mavlink_field_info_t fieldinfo = decoder->getFieldInfo(name,fieldnames.at(i));
-                            variablenames += QString(fieldinfo.name) + ",";
+                            variablenames <<  QString(fieldinfo.name);
                             switch (fieldinfo.type)
                             {
                                 case MAVLINK_TYPE_CHAR:
@@ -994,7 +995,9 @@ void AP2DataPlotThread::loadTLog()
                                 break;
                             }
                         }
-                        QString createstring = makeCreateTableString(name,typechars,variablenames);
+
+                        m_dataModel->addType(name,typechars,variablenames);
+                        /*QString createstring = makeCreateTableString(name,typechars,variablenames);
                         QString insertstring = makeInsertTableString(name,variablenames);
 
                         fmtinsertquery.bindValue(":idx",fmtindex++);
@@ -1023,26 +1026,35 @@ void AP2DataPlotThread::loadTLog()
                         if (!create.exec())
                         {
                             QLOG_ERROR() << "Unable to exec create:" << create.lastError().text();
-                        }
+                        }*/
                     }
-                    QSqlQuery query(*m_db);
+                    /*QSqlQuery query(*m_db);
                     if (!query.prepare(m_msgNameToInsertQuery.value(name)))
                     {
                         QLOG_ERROR() << "Unable to prepare query:" << query.lastError().text();
-                    }
+                    }*/
 
                     quint64 unixtimemsec = (quint64)decoder->getUnixTimeFromMs(message.sysid, lastLogTime);
+                    QVariantList valuelist;
+
                     while (lastunixtimemseclist.contains(unixtimemsec))
                     {
                         unixtimemsec++;
                     }
                     lastunixtimemseclist.append(unixtimemsec);
-                    query.bindValue(":idx",unixtimemsec);
+                    //query.bindValue(":idx",unixtimemsec);
+                    QList<QPair<QString,QVariant> > valuepairlist;
+                    //valuelist.append(QPair<QString,QVariant>("idx",unixtimemsec));
                     for (int i=0;i<retvals.size();i++)
                     {
-                        query.bindValue(QString(":") + retvals.at(i).first.split(".")[1],retvals.at(i).second.toInt());
+                        valuepairlist.append(QPair<QString,QVariant>(retvals.at(i).first.split(".")[1],retvals.at(i).second.toInt()));
+                        //query.bindValue(QString(":") + retvals.at(i).first.split(".")[1],retvals.at(i).second.toInt());
                     }
-                    if (retvals.size() > 0)
+                    if (valuepairlist.size() > 1)
+                    {
+                        m_dataModel->addRow(name,valuepairlist,unixtimemsec);
+                    }
+                    /*if (retvals.size() > 0)
                     {
                         if (!query.exec())
                         {
@@ -1059,7 +1071,7 @@ void AP2DataPlotThread::loadTLog()
                                 return;
                             }
                         }
-                    }
+                    }*/
                 }
 
             }
@@ -1105,8 +1117,8 @@ void AP2DataPlotThread::run()
 
     if (!m_db->commit())
     {
-        emit error("Unable to commit database transaction 4");
-        return;
+        //emit error("Unable to commit database transaction 4");
+        //return;
     }
     QLOG_DEBUG() << "AP2DataPlotThread::run(): Log loading finished, pos:" << logfile.pos() << "filesize:" << logfile.size();
     if (m_stop)

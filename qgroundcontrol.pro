@@ -644,7 +644,8 @@ HEADERS += \
     src/comm/AbsPositionOverview.h \
     src/comm/MissionOverview.h \
     src/ui/AP2DataPlot2DModel.h \
-    src/ui/uas/PreFlightCalibrationDialog.h
+    src/ui/uas/PreFlightCalibrationDialog.h \
+    src/ui/GraphData/GraphDataManager.h
 #    libs/sik_uploader/qsikuploader.h \
 #    libs/sik_uploader/sikuploader.h \
 
@@ -860,7 +861,8 @@ SOURCES += src/main.cc \
     src/comm/AbsPositionOverview.cc \
     src/comm/MissionOverview.cc \
     src/ui/AP2DataPlot2DModel.cc \
-    src/ui/uas/PreFlightCalibrationDialog.cpp
+    src/ui/uas/PreFlightCalibrationDialog.cpp \
+    src/ui/GraphData/GraphDataManager.cc
 #    libs/sik_uploader/qsikuploader.cpp \
 #    libs/sik_uploader/sikuploader.cpp \
 
